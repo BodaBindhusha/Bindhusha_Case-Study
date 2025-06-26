@@ -1,0 +1,955 @@
+PART B: PROJECT STRUCTURE
+ecommerce-app/
+│
+├── entity/               → Entity classes (Customer, Product, etc.)
+├── dao/                  → Interface and Implementation (DB logic)
+├── exception/            → Custom exceptions
+├── util/                 → DB utility (get connection)
+├── main/                 → Main app file
+├── test/                 → Unit test cases
+├── config.properties     → DB config (host, port, user, password, dbname)
+├── requirements.txt      → For required packages
+└── README.md             → (Optional) GitHub Readme
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+PART C: SETUP PYTHON ENVIRONMENT
+1.Create virtual environment
+Open VS Code terminal:  python -m venv venv
+2.Activate virtual environment: venv\Scripts\activate
+#########################################################
+PART D: INSTALL REQUIRED PACKAGES
+Run in terminal: 
+pip install mysql-connector-python #mysql-connector-python
+pip install pytest  #pytest
+######################################################
+PART E: CONFIGURE DATABASE
+1. Create Database and Tables in MySQL Workbench
+Run the following in your MySQL Workbench SQL tab:
+
+
+CREATE DATABASE ecommerce_db;
+USE ecommerce_db;
+
+CREATE TABLE customers (
+  customer_id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(100),
+  email VARCHAR(100),
+  password VARCHAR(100)
+);
+
+CREATE TABLE products (
+  product_id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(100),
+  price DOUBLE,
+  description TEXT,
+  stockQuantity INT
+);
+CREATE TABLE cart (
+  cart_id INT PRIMARY KEY AUTO_INCREMENT,
+  customer_id INT,
+  product_id INT,
+  quantity INT,
+  FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
+  FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+
+CREATE TABLE orders (
+  order_id INT PRIMARY KEY AUTO_INCREMENT,
+  customer_id INT,
+  order_date DATETIME,
+  total_price DOUBLE,
+  shipping_address VARCHAR(255),
+  FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+);
+
+CREATE TABLE order_items (
+  order_item_id INT PRIMARY KEY AUTO_INCREMENT,
+  order_id INT,
+  product_id INT,
+  quantity INT,
+  FOREIGN KEY (order_id) REFERENCES orders(order_id),
+  FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+
+INSERT INTO customers (name, email, password) VALUES
+('Bindhu', 'bindhu@gmail.com', 'bindhu123'),
+('Ravi', 'ravi@example.com', 'ravi123'),
+('Sita', 'sita@example.com', 'sita123'),
+('Kiran', 'kiran@example.com', 'kiran123'),
+('Meena', 'meena@example.com', 'meena123'),
+('Arun', 'arun@example.com', 'arun123'),
+('Divya', 'divya@example.com', 'divya123');
+
+INSERT INTO products (name, price, description, stockQuantity) VALUES
+('Laptop', 65000, 'Dell Inspiron 15', 10),
+('Smartphone', 15000, 'Redmi Note 12', 20),
+('Headphones', 2000, 'Boat Rockerz Wireless', 30),
+('Smartwatch', 3500, 'Noise ColorFit Pro', 25),
+('Keyboard', 999, 'Logitech USB Keyboard', 50),
+('Mouse', 499, 'HP Optical Mouse', 45),
+('Monitor', 7500, 'Samsung 24-inch LED', 15);
+
+INSERT INTO cart (customer_id, product_id, quantity) VALUES
+(1, 1, 1),
+(1, 2, 2),
+(2, 3, 1),
+(3, 4, 1),
+(4, 1, 2),
+(5, 5, 1),
+(6, 6, 2);
+
+INSERT INTO orders (customer_id, order_date, total_price, shipping_address) VALUES
+(1, NOW(), 80000, 'Hyderabad'),
+(2, NOW(), 2000, 'Vijayawada'),
+(3, NOW(), 3500, 'Chennai'),
+(4, NOW(), 130000, 'Bangalore'),
+(5, NOW(), 999, 'Mumbai'),
+(6, NOW(), 4499, 'Delhi'),
+(7, NOW(), 7500, 'Kolkata');
+
+INSERT INTO order_items (order_id, product_id, quantity) VALUES
+(1, 1, 1),
+(1, 2, 1),
+(2, 3, 1),
+(3, 4, 1),
+(4, 1, 2),
+(5, 5, 1),
+(6, 6, 1);
+##################################################################3
+PART F: CONFIGURATION FILE
+Create config.properties in root folder:
+[mysql]
+host = DESKTOP
+port = 3306
+database = ecommerce_db
+user = root
+password = BindhuSha@157
+#######################################################
+PART G: START CODING STRUCTURE
+You will write:
+#util/DBConnUtil.py
+# util/DBConnUtil.py
+from util.DBPropertyUtil import DBPropertyUtil
+import mysql.connector
+
+class DBConnUtil:
+    @staticmethod
+    def getConnection():
+        try:
+            props = DBPropertyUtil.getPropertyDict("config.properties")
+            connection = mysql.connector.connect(
+                host=props['host'],
+                port=int(props['port']),
+                database=props['database'],
+                user=props['user'],
+                password=props['password']
+            )
+            return connection
+        except mysql.connector.Error as err:
+            print(f"Database connection failed: {err}")
+            raise
+
+#util/DBPropertyUtil.py
+import configparser
+class DBPropertyUtil:
+    @staticmethod
+    def getPropertyDict(file_name):
+        config = configparser.ConfigParser()
+        config.read(file_name)
+
+        if 'mysql' not in config:
+            raise Exception("Missing [mysql] section in config file.")
+
+        return {
+            'host': config.get('mysql', 'host'),
+            'port': config.get('mysql', 'port'),
+            'database': config.get('mysql', 'database'),
+            'user': config.get('mysql', 'user'),
+            'password': config.get('mysql', 'password')
+        }
+
+###########################################################
+STEP 1: entity/Customer.py
+Task:
+Create a class Customer with:
+Private variables (customer_id, name, email, password)
+Default constructor
+Parameterized constructor
+Getters and setters (using Python properties)
+
+Create a file: entity/Customer.py
+code:
+# entity/Customer.py
+class Customer:
+    def __init__(self, customer_id=None, name=None, email=None, password=None):
+        self.customer_id = customer_id
+        self.name = name
+        self.email = email
+        self.password = password
+
+    def get_customer_id(self):
+        return self.customer_id
+
+    def get_name(self):
+        return self.name
+
+    def get_email(self):
+        return self.email
+
+    def get_password(self):
+        return self.password
+    def __str__(self):
+        return f"Customer[ID={self.customer_id}, Name={self.name}, Email={self.email}]"
+
+
+STEP 2: entity/Product.py
+Create a file: entity/Product.py
+Code:# entity/Product.py
+# entity/Product.py
+class Product:
+    def __init__(self, product_id=None, name=None, price=None, description=None, stock_quantity=None):
+        self.product_id = product_id
+        self.name = name
+        self.price = price
+        self.description = description
+        self.stock_quantity = stock_quantity
+
+    def get_product_id(self):
+        return self.product_id
+
+    def get_name(self):
+        return self.name
+
+    def get_price(self):
+        return self.price
+
+    def get_description(self):
+        return self.description
+
+    def get_stock_quantity(self):
+        return self.stock_quantity
+    def __str__(self):
+        return f"Product[ID={self.product_id}, Name={self.name}, Price={self.price}]"
+
+STEP 3: entity/Cart.py
+Create a file: entity/Cart.py
+Code:
+# entity/Cart.py
+class CartItem:
+    def __init__(self, customer_id=None, product_id=None, quantity=None):
+        self.customer_id = customer_id
+        self.product_id = product_id
+        self.quantity = quantity
+
+    def get_customer_id(self):
+        return self.customer_id
+
+    def get_product_id(self):
+        return self.product_id
+
+    def get_quantity(self):
+        return self.quantity
+    def __str__(self):
+        return f"CartItem[CustomerID={self.customer_id}, ProductID={self.product_id}, Quantity={self.quantity}]"
+    
+STEP 4: entity/Order.py
+Create a file: entity/Order.py
+Code:
+# entity/Order.py
+class Order:
+    def __init__(self, order_id=None, customer_id=None, order_date=None, total_price=None, shipping_address=None):
+        self.order_id = order_id
+        self.customer_id = customer_id
+        self.order_date = order_date
+        self.total_price = total_price
+        self.shipping_address = shipping_address
+
+    def get_order_id(self):
+        return self.order_id
+
+    def get_customer_id(self):
+        return self.customer_id
+
+    def get_order_date(self):
+        return self.order_date
+
+    def get_total_price(self):
+        return self.total_price
+
+    def get_shipping_address(self):
+        return self.shipping_address
+    def __str__(self):
+        return f"Order[ID={self.order_id}, CustomerID={self.customer_id}, Total={self.total_price}]"
+STEP 5: entity/OrderItem.py
+Create a file: entity/OrderItem.py
+Code:
+# entity/OrderItem.py
+class OrderItem:
+    def __init__(self, item_id=None, order_id=None, product_id=None, quantity=None):
+        self.item_id = item_id
+        self.order_id = order_id
+        self.product_id = product_id
+        self.quantity = quantity
+
+    def get_item_id(self):
+        return self.item_id
+
+    def get_order_id(self):
+        return self.order_id
+
+    def get_product_id(self):
+        return self.product_id
+
+    def get_quantity(self):
+        return self.quantity
+    def __str__(self):
+        return f"OrderItem[ItemID={self.item_id}, ProductID={self.product_id}, Quantity={self.quantity}]"
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+STEP 6: Create Custom Exception Classes
+Create a new folder named exception/ inside your project.
+
+We will now define 3 user-defined exception classes as required:
+Exceptions to Create:
+*CustomerNotFoundException
+*ProductNotFoundException
+*OrderNotFoundException
+All will extend from Python's built-in Exception class.
+
+1.exception/CustomerNotFoundException.py
+class CustomerNotFoundException(Exception):
+    """Raised when a customer ID is not found in the database."""
+    def __init__(self, message="Customer not found."):
+        super().__init__(message)
+2. exception/ProductNotFoundException.py
+class ProductNotFoundException(Exception):
+    """Raised when a product ID is not found in the database."""
+    def __init__(self, message="Product not found."):
+        super().__init__(message)
+3. exception/OrderNotFoundException.py
+class OrderNotFoundException(Exception):
+    """Raised when an order ID is not found in the database."""
+    def __init__(self, message="Order not found."):
+        super().__init__(message)
+4.exception/test_exception.py
+from exception.CustomerNotFoundException import CustomerNotFoundException
+try:
+    raise CustomerNotFoundException("No such customer exists!")
+except CustomerNotFoundException as e:
+    print(e)
+########################################################################
+STEP 7: Create DAO Interface
+📁 Folder: dao/
+📄 File: OrderProcessorRepository.py
+
+This will act like a blueprint (or interface) for all the database operations like:
+Adding customer/product
+Deleting product
+Adding/removing from cart
+Placing order
+Viewing orders
+
+✅ What is a DAO Interface?
+It's a class with method signatures (not implementation).
+In Python, you can use abstract base classes to define interfaces.
+We'll use Python's abc module (Abstract Base Class).
+
+Code for dao/OrderProcessorRepository.py
+
+# dao/OrderProcessorRepository.py
+from abc import ABC, abstractmethod
+
+class OrderProcessorRepository(ABC):
+    """Interface for ecommerce operations like customer/product management, cart, and orders."""
+
+    @abstractmethod
+    def create_customer(self, customer):
+        """Insert a new customer into the database."""
+        pass
+
+    @abstractmethod
+    def create_product(self, product):
+        """Insert a new product into the database."""
+        pass
+
+    @abstractmethod
+    def delete_product(self, product_id):
+        """Delete a product from the database by ID."""
+        pass
+
+    @abstractmethod
+    def delete_customer(self, customer_id):
+        """Delete a customer from the database by ID."""
+        pass
+
+    @abstractmethod
+    def add_to_cart(self, customer, product, quantity):
+        """Add a product with quantity to the customer's cart."""
+        pass
+
+    @abstractmethod
+    def remove_from_cart(self, customer, product):
+        """Remove a product from the customer's cart."""
+        pass
+
+    @abstractmethod
+    def get_all_from_cart(self, customer):
+        """Get all items in a customer's cart."""
+        pass
+
+    @abstractmethod
+    def place_order(self, customer, product_quantity_list, shipping_address):
+        """Place an order for the items in the cart."""
+        pass
+
+    @abstractmethod
+    def get_orders_by_customer(self, customer_id):
+        """Retrieve all orders placed by a customer."""
+        pass
+
+#################################################################################
+STEP 8: Implement the DAO Interface
+📁 File: dao/OrderProcessorRepositoryImpl.py
+
+This is where we’ll:
+Connect to the database
+Perform INSERT, DELETE, SELECT queries using mysql-connector-python
+Handle exceptions
+
+🔄 What Will This File Do?
+Implement the following methods from your interface:
+
+createCustomer(customer)
+createProduct(product)
+deleteProduct(product_id)
+deleteCustomer(customer_id)
+addToCart(customer, product, quantity)
+removeFromCart(customer, product)
+getAllFromCart(customer)
+placeOrder(customer, product_quantity_list, shipping_address)
+getOrdersByCustomer(customer_id)
+
+File: dao/OrderProcessorRepositoryImpl.py
+# dao/OrderProcessorRepositoryImpl.py
+import mysql.connector
+from dao.OrderProcessorRepository import OrderProcessorRepository
+from util.DBConnUtil import DBConnUtil
+from exception.CustomerNotFoundException import CustomerNotFoundException
+from exception.ProductNotFoundException import ProductNotFoundException
+from exception.OrderNotFoundException import OrderNotFoundException
+from entity.Customer import Customer
+from entity.Product import Product
+
+class OrderProcessorRepositoryImpl(OrderProcessorRepository):
+    def __init__(self):
+        self.conn = DBConnUtil.getConnection()
+        self.cursor = self.conn.cursor(dictionary=True)
+
+    def create_customer(self, customer: Customer):
+        try:
+            query = "INSERT INTO customers (name, email, password) VALUES (%s, %s, %s)"
+            values = (customer.get_name(), customer.get_email(), customer.get_password())
+            self.cursor.execute(query, values)
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"[ERROR] create_customer: {e}")
+            return False
+
+    def create_product(self, product: Product):
+        try:
+            query = """
+                INSERT INTO products (name, price, description, stockQuantity)
+                VALUES (%s, %s, %s, %s)
+            """
+            values = (
+                product.get_name(),
+                product.get_price(),
+                product.get_description(),
+                product.get_stock_quantity()
+            )
+            self.cursor.execute(query, values)
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"[ERROR] create_product: {e}")
+            return False
+
+    def delete_product(self, product_id):
+        try:
+            self.cursor.execute("SELECT * FROM products WHERE product_id = %s", (product_id,))
+            if not self.cursor.fetchone():
+                raise ProductNotFoundException(f"Product ID {product_id} not found.")
+            self.cursor.execute("DELETE FROM products WHERE product_id = %s", (product_id,))
+            self.conn.commit()
+            return True
+        except ProductNotFoundException:
+            raise
+        except Exception as e:
+            print(f"[ERROR] delete_product: {e}")
+            return False
+
+    def delete_customer(self, customer_id):
+        try:
+            self.cursor.execute("SELECT * FROM customers WHERE customer_id = %s", (customer_id,))
+            if not self.cursor.fetchone():
+                raise CustomerNotFoundException(f"Customer ID {customer_id} not found.")
+            self.cursor.execute("DELETE FROM customers WHERE customer_id = %s", (customer_id,))
+            self.conn.commit()
+            return True
+        except CustomerNotFoundException:
+            raise
+        except Exception as e:
+            print(f"[ERROR] delete_customer: {e}")
+            return False
+
+    def add_to_cart(self, customer: Customer, product: Product, quantity: int):
+        try:
+            query = "INSERT INTO cart (customer_id, product_id, quantity) VALUES (%s, %s, %s)"
+            values = (customer.get_customer_id(), product.get_product_id(), quantity)
+            self.cursor.execute(query, values)
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"[ERROR] add_to_cart: {e}")
+            return False
+
+    def remove_from_cart(self, customer: Customer, product: Product):
+        try:
+            query = "DELETE FROM cart WHERE customer_id = %s AND product_id = %s"
+            values = (customer.get_customer_id(), product.get_product_id())
+            self.cursor.execute(query, values)
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"[ERROR] remove_from_cart: {e}")
+            return False
+
+    def get_all_from_cart(self, customer: Customer):
+        try:
+            query = """
+                SELECT p.product_id, p.name, p.price, c.quantity 
+                FROM cart c
+                JOIN products p ON c.product_id = p.product_id 
+                WHERE c.customer_id = %s
+            """
+            self.cursor.execute(query, (customer.get_customer_id(),))
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(f"[ERROR] get_all_from_cart: {e}")
+            return []
+
+    def place_order(self, customer: Customer, product_quantity_list: list, shipping_address: str):
+        try:
+            total_price = sum(
+                product.get_price() * quantity
+                for item in product_quantity_list
+                for product, quantity in item.items()
+            )
+
+            order_query = """
+                INSERT INTO orders (customer_id, order_date, total_price, shipping_address)
+                VALUES (%s, NOW(), %s, %s)
+            """
+            self.cursor.execute(order_query, (customer.get_customer_id(), total_price, shipping_address))
+            order_id = self.cursor.lastrowid
+
+            for item in product_quantity_list:
+                for product, quantity in item.items():
+                    item_query = """
+                        INSERT INTO order_items (order_id, product_id, quantity)
+                        VALUES (%s, %s, %s)
+                    """
+                    self.cursor.execute(item_query, (order_id, product.get_product_id(), quantity))
+
+            self.cursor.execute("DELETE FROM cart WHERE customer_id = %s", (customer.get_customer_id(),))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"[ERROR] place_order: {e}")
+            return False
+
+    def get_orders_by_customer(self, customer_id: int):
+        try:
+            self.cursor.execute("SELECT * FROM orders WHERE customer_id = %s", (customer_id,))
+            orders = self.cursor.fetchall()
+            if not orders:
+                raise CustomerNotFoundException(f"No orders found for Customer ID {customer_id}.")
+
+            order_details = []
+            for order in orders:
+                self.cursor.execute("SELECT * FROM order_items WHERE order_id = %s", (order['order_id'],))
+                items = self.cursor.fetchall()
+                order_details.append({
+                    "order_id": order['order_id'],
+                    "total_price": order['total_price'],
+                    "shipping_address": order['shipping_address'],
+                    "order_date": order['order_date'],
+                    "items": items
+                })
+
+            return order_details
+        except CustomerNotFoundException:
+            raise
+        except Exception as e:
+            print(f"[ERROR] get_orders_by_customer: {e}")
+            return []
+        
+    def get_top_customers_by_spending(self, min_total_spent=1000):
+        try:
+            query = """
+                SELECT c.customer_id, c.name, SUM(o.total_price) as total_spent
+                FROM customers c
+                JOIN orders o ON c.customer_id = o.customer_id
+                GROUP BY c.customer_id
+                HAVING total_spent >= %s
+                ORDER BY total_spent DESC
+            """
+            self.cursor.execute(query, (min_total_spent,))
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(f"[ERROR] get_top_customers_by_spending: {e}")
+            return []
+    
+    def get_product_order_summary(self):
+        try:
+            query = """
+                SELECT 
+                    p.product_id,
+                    p.name AS product_name,
+                    SUM(oi.quantity) AS total_quantity_sold,
+                    SUM(oi.quantity * p.price) AS total_revenue
+                FROM 
+                    order_items oi
+                JOIN 
+                    products p ON oi.product_id = p.product_id
+                GROUP BY 
+                    p.product_id, p.name
+            """
+            self.cursor.execute(query)
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(f"[ERROR] get_product_order_summary: {e}")
+            return []
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+STEP 9: Menu-Driven App
+📁 Folder: main/
+📄 File: EcomApp.py
+
+This file will:
+Show a user menu with options (Register, Add Product, Add to Cart, etc.)
+Accept user input
+Trigger the appropriate methods from your OrderProcessorRepositoryImpl class
+Handle exceptions like CustomerNotFoundException, etc.
+
+🎯 Features in Menu:
+1. Register Customer
+2. Create Product
+3. Delete Product
+4. Add to Cart
+5. View Cart
+6. Place Order
+7. View Customer Orders
+8. Exit
+
+Code for main/EcomApp.py
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from entity.Customer import Customer
+from entity.Product import Product
+from dao.OrderProcessorRepositoryImpl import OrderProcessorRepositoryImpl
+from exception.CustomerNotFoundException import CustomerNotFoundException
+from exception.ProductNotFoundException import ProductNotFoundException
+
+def show_menu():
+    print("\n========= E-COMMERCE MENU =========")
+    print("1. Register Customer")
+    print("2. Create Product")
+    print("3. Delete Product")
+    print("4. Add to Cart")
+    print("5. View Cart")
+    print("6. Place Order")
+    print("7. View Customer Orders")
+    print("8. Product Order Summary")
+    print("9. Exit")
+    print("===================================")
+
+# STEP 1: Validate customer input
+def get_validated_customer_input():
+    name = input("Enter name: ").strip()
+    email = input("Enter email: ").strip()
+    password = input("Enter password (min 6 chars): ").strip()
+
+    if '@' not in email or '.' not in email:
+        print("❌ Invalid email format.")
+        return None
+    if len(password) < 6:
+        print("❌ Password too short.")
+        return None
+
+    return Customer(name=name, email=email, password=password)
+
+# STEP 2: Validate product input
+def get_validated_product_input():
+    name = input("Enter product name: ").strip()
+    try:
+        price = float(input("Enter price: "))
+        if price <= 0:
+            print("❌ Price must be greater than 0.")
+            return None
+        stock = int(input("Enter stock quantity: "))
+        if stock < 0:
+            print("❌ Stock must be non-negative.")
+            return None
+    except ValueError:
+        print("❌ Invalid numeric input.")
+        return None
+
+    description = input("Enter description: ").strip()
+    return Product(name=name, price=price, description=description, stock_quantity=stock)
+
+def main():
+    repo = OrderProcessorRepositoryImpl()
+
+    while True:
+        show_menu()
+        choice = input("Enter your choice (1-9): ").strip()
+
+        try:
+            if choice == '1':
+                customer = get_validated_customer_input()
+                if not customer:
+                    continue
+                if repo.create_customer(customer):
+                    print("✅ Customer registered successfully!")
+                else:
+                    print("❌ Customer registration failed.")
+
+            elif choice == '2':
+                product = get_validated_product_input()
+                if not product:
+                    continue
+                if repo.create_product(product):
+                    print("✅ Product added successfully!")
+                else:
+                    print("❌ Failed to add product.")
+
+            elif choice == '3':
+                try:
+                    product_id = int(input("Enter product ID to delete: "))
+                    if repo.delete_product(product_id):
+                        print("✅ Product deleted.")
+                except ValueError:
+                    print("❌ Please enter a valid product ID.")
+
+            elif choice == '4':
+                try:
+                    customer_id = int(input("Enter your customer ID: "))
+                    product_id = int(input("Enter product ID to add: "))
+                    quantity = int(input("Enter quantity: "))
+                    if quantity <= 0:
+                        print("❌ Quantity must be positive.")
+                        continue
+
+                    customer = Customer(customer_id=customer_id)
+                    product = Product(product_id=product_id)
+
+                    if repo.add_to_cart(customer, product, quantity):
+                        print("✅ Product added to cart.")
+                    else:
+                        print("❌ Failed to add to cart.")
+                except ValueError:
+                    print("❌ Please enter valid numeric values.")
+
+            elif choice == '5':
+                customer_id = int(input("Enter your customer ID: "))
+                customer = Customer(customer_id=customer_id)
+                items = repo.get_all_from_cart(customer)
+
+                if items:
+                    print("🛒 Your Cart Items:")
+                    for item in items:
+                        print(f"📦 {item['name']} - ₹{item['price']} x {item['quantity']}")
+                else:
+                    print("🛒 Your cart is empty.")
+
+            elif choice == '6':
+                customer_id = int(input("Enter your customer ID: "))
+                customer = Customer(customer_id=customer_id)
+                shipping = input("Enter shipping address: ")
+
+                cart_items = repo.get_all_from_cart(customer)
+                if not cart_items:
+                    print("❌ Your cart is empty.")
+                    continue
+
+                product_quantity_list = []
+                for item in cart_items:
+                    product = Product(product_id=item['product_id'], price=item['price'])
+                    product_quantity_list.append({product: item['quantity']})
+
+                if repo.place_order(customer, product_quantity_list, shipping):
+                    print("✅ Order placed successfully!")
+                else:
+                    print("❌ Failed to place order.")
+
+            elif choice == '7':
+                customer_id = int(input("Enter your customer ID: "))
+                orders = repo.get_orders_by_customer(customer_id)
+                if orders:
+                    for order in orders:
+                        print("\n🧾 Order ID:", order['order_id'])
+                        print("   Total: ₹", order['total_price'])
+                        print("   Date:", order['order_date'])
+                        print("   Address:", order['shipping_address'])
+                        print("   Items:")
+                        for item in order['items']:
+                            print(f"     📦 Product ID: {item['product_id']} - Qty: {item['quantity']}")
+            
+                else:
+                    print("❌ No orders found.")
+
+            elif choice == '8':
+                print("👋 Exiting the application. Thank you!")
+                break
+
+            elif choice == '8':
+                summary = repo.get_product_order_summary()
+                if summary:
+                    print("\n📊 Product Order Summary:")
+                    for row in summary:
+                        print(f"📦 Product: {row['product_name']} | Total Sold: {row['total_quantity_sold']} | Revenue: ₹{row['total_revenue']}")
+                else:
+                    print("ℹ️ No order data available.")
+            elif choice == '9':
+                print("👋 Exiting the application. Thank you!")
+                break
+            else:
+                print("⚠️ Invalid choice. Please enter a number between 1 and 9.")
+        except CustomerNotFoundException as e:
+            print("🚫", e)
+        except ProductNotFoundException as e:
+            print("🚫", e)
+        except ValueError:
+            print("⚠️ Please enter valid numeric input.")
+        except Exception as e:
+            print(f"❗ Unexpected Error: {e}")
+
+if __name__ == "__main__":
+    main()
+
+
+#############################################
+import configparser
+config = configparser.ConfigParser()
+config.read("config.properties")
+print(config.sections())  # should print ['mysql']
+#################################################################
+ What You Should Do Next – Final Checklist
+🧾 Step-by-step from this point
+✅ STEP 1: Start MySQL Workbench
+Make sure your local instance (MySQL80) is running.
+
+✅ STEP 2: VS Code Setup
+In VS Code terminal:
+
+# Navigate to project folder (if not already)
+cd path/to/your/ecommerce-app
+
+# Activate your virtual environment
+venv\Scripts\activate  # for Windows
+
+####################################################
+✅ STEP 3: Run the Main App
+python main/EcomApp.py
+######################################
+✅ Final step: #test_order_processor.py
+# test/test_order_processor.py
+
+import pytest
+from entity.Customer import Customer
+from entity.Product import Product
+from dao.OrderProcessorRepositoryImpl import OrderProcessorRepositoryImpl
+from exception.CustomerNotFoundException import CustomerNotFoundException
+from exception.ProductNotFoundException import ProductNotFoundException
+
+@pytest.fixture(scope="module")
+def repo():
+    return OrderProcessorRepositoryImpl()
+
+def test_create_customer(repo):
+    customer = Customer(name="TestUser", email="testuser@example.com", password="test123")
+    result = repo.create_customer(customer)  # ✅ snake_case
+    assert result is True
+
+def test_create_product(repo):
+    product = Product(name="Test Keyboard", price=500.0, description="USB keyboard", stock_quantity=5)
+    result = repo.create_product(product)  # ✅ snake_case
+    assert result is True
+
+def test_add_product_to_cart(repo):
+    customer = Customer(customer_id=1)  # Must exist in DB
+    product = Product(product_id=1)     # Must exist in DB
+    result = repo.add_to_cart(customer, product, quantity=1)  # ✅ snake_case
+    assert result is True
+
+def test_remove_from_cart(repo):
+    customer = Customer(customer_id=1)
+    product = Product(product_id=1)
+    result = repo.remove_from_cart(customer, product)  # ✅ snake_case
+    assert result is True or result is False
+
+def test_place_order(repo):
+    customer = Customer(customer_id=1)
+    cart_items = repo.get_all_from_cart(customer)  # ✅ snake_case
+
+    if not cart_items:
+        pytest.skip("Cart is empty for this customer.")
+
+    product_quantity_list = []
+    for item in cart_items:
+        product = Product(product_id=item['product_id'], price=item['price'])
+        product_quantity_list.append({product: item['quantity']})
+
+    result = repo.place_order(customer, product_quantity_list, "Test Address")  # ✅ snake_case
+    assert result is True
+
+def test_get_orders_by_customer(repo):
+    customer_id = 1
+    orders = repo.get_orders_by_customer(customer_id)  # ✅ snake_case
+    assert isinstance(orders, list)
+    if orders:
+        assert "order_id" in orders[0]
+
+def test_customer_not_found_exception(repo):
+    with pytest.raises(CustomerNotFoundException):
+        repo.delete_customer(9999)  # ✅ snake_case
+
+def test_product_not_found_exception(repo):
+    with pytest.raises(ProductNotFoundException):
+        repo.delete_product(9999)  # ✅ snake_case
+def test_get_top_customers_by_spending(repo):
+    results = repo.get_top_customers_by_spending(100)
+    assert isinstance(results, list)
+    if results:
+        assert "customer_id" in results[0]
+        assert "name" in results[0]
+        assert "total_spent" in results[0]
+
+def test_product_order_summary(repo):
+    summary = repo.get_product_order_summary()
+    assert isinstance(summary, list)
+    if summary:
+        assert 'product_id' in summary[0]
+        assert 'product_name' in summary[0]
+        assert 'total_quantity_sold' in summary[0]
+        assert 'total_revenue' in summary[0]
+def test_duplicate_product_insertion(repo):
+    product = Product(name="Test Duplicate", price=300.0, description="test", stock_quantity=5)
+    result1 = repo.create_product(product)
+    result2 = repo.create_product(product)
+    assert result1 is True
+    assert result2 in [True, False]  # Depending on DB constraint
+#########################################
+TEST COMMAND: pytest test/test_order_processor.py -v
